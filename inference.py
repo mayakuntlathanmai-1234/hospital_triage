@@ -24,20 +24,19 @@ client = OpenAI(
 )
 
 def run_agent():
-    # REQUIRED FORMAT: START
-    print("START")
+    task_name = "HospitalTriage"
+    # REQUIRED FORMAT: [START] task=NAME
+    print(f"[START] task={task_name}", flush=True)
     
+    total_reward = 0.0
+    step_idx = 0
     try:
         env = gym.make('HospitalTriage-v0', num_doctors=3, num_beds=5)
         state, info = env.reset()
         
         done = False
-        step_idx = 0
         
         while not done and step_idx < 10:
-            # REQUIRED FORMAT: STEP
-            print(f"STEP")
-            
             # Example LLM Call using the configured client (Checklist item)
             # We wrap it in a try-except so it doesn't crash if the dummy key is used locally
             try:
@@ -57,15 +56,20 @@ def run_agent():
             action = [4, 0, 0, 0] 
             
             state, reward, terminated, truncated, _ = env.step(action)
+            total_reward += float(reward)
             done = terminated or truncated
             step_idx += 1
             
-        # REQUIRED FORMAT: END
-        print("END")
+            # REQUIRED FORMAT: [STEP] step=NUM reward=VAL
+            print(f"[STEP] step={step_idx} reward={reward}", flush=True)
+            
+        # REQUIRED FORMAT: [END] task=NAME score=VAL steps=NUM
+        print(f"[END] task={task_name} score={total_reward} steps={step_idx}", flush=True)
         
     except Exception as e:
-        print(f"ERROR: {e}")
-        print("END") # Always ensure END is printed
+        # In case of error, print details to stderr but still output [END] to stdout for the validator
+        print(f"ERROR: {e}", file=sys.stderr)
+        print(f"[END] task={task_name} score={total_reward} steps={step_idx}", flush=True)
 
 if __name__ == "__main__":
     run_agent()

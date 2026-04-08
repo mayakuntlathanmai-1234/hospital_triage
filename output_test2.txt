@@ -1,0 +1,12 @@
+[START] task=HospitalTriage
+[STEP] step=1 reward=-5.0
+[STEP] step=2 reward=-5.0
+[STEP] step=3 reward=-5.0
+[STEP] step=4 reward=-5.0
+[STEP] step=5 reward=-5.0
+[STEP] step=6 reward=-5.0
+[STEP] step=7 reward=-5.0
+[STEP] step=8 reward=-5.0
+[STEP] step=9 reward=-5.0
+[STEP] step=10 reward=-5.0
+[END] task=HospitalTriage score=-50.0 steps=10
