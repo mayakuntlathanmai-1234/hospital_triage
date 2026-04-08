@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  hospital-triage:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hospital-triage-env
+    volumes:
+      - .:/app
+    environment:
+      PYTHONUNBUFFERED: 1
+      PYTHONDONTWRITEBYTECODE: 1
+    command: python scripts/demo.py

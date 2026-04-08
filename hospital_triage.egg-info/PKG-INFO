@@ -1,0 +1,445 @@
+Metadata-Version: 2.4
+Name: hospital-triage
+Version: 0.1.0
+Summary: Hospital Triage and Resource Allocation OpenEnv Environment
+Home-page: https://github.com/yourusername/hospital-triage
+Author: Your Name
+Author-email: your.email@example.com
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: gymnasium>=0.26.0
+Requires-Dist: numpy>=1.21.0
+Requires-Dist: matplotlib>=3.3.0
+Provides-Extra: dev
+Requires-Dist: pytest>=6.0; extra == "dev"
+Requires-Dist: pytest-cov>=2.12.0; extra == "dev"
+Requires-Dist: black>=21.0; extra == "dev"
+Requires-Dist: flake8>=3.9.0; extra == "dev"
+Requires-Dist: mypy>=0.900; extra == "dev"
+Provides-Extra: demo
+Requires-Dist: stable-baselines3>=1.5.0; extra == "demo"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license-file
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# Hospital Triage and Resource Allocation Environment
+
+A comprehensive OpenEnv (Gymnasium) environment simulating hospital daily operations where an agent learns to efficiently manage patients, beds, doctors, and resources.
+
+## Overview
+
+This project implements a realistic hospital simulation environment based on Gymnasium's API standard. The environment models:
+
+- **Patient Management**: Continuous patient arrivals with varying severities and conditions
+- **Resource Constraints**: Limited beds, doctors, and lab test slots
+- **Dynamic Scheduling**: Complex interactions between patient needs and available resources
+- **Real-world Challenges**: Emergency cases, specialist requirements, scheduling conflicts
+
+## Features
+
+✅ **OpenEnv-Compliant**: Fully implements Gymnasium's `gym.Env` interface
+✅ **Realistic Hospital Simulation**: Models actual hospital operations
+✅ **Flexible Reward Design**: Incentivizes efficient resource allocation and patient outcomes
+✅ **Scalable Architecture**: Easily customizable hospital configurations
+✅ **Interactive Dashboard** (NEW!): Web-based UI for real-time hospital management
+✅ **Docker Ready**: Complete containerization support
+✅ **Comprehensive Testing**: Full test suite included
+✅ **Demo Scripts**: Multiple example agents (random, rule-based, trained RL)
+
+## Installation
+
+### From Source
+
+```bash
+git clone https://github.com/yourusername/hospital-triage.git
+cd hospital-triage
+pip install -e .
+```
+
+### Docker
+
+```bash
+docker-compose up
+```
+
+### Requirements
+
+- Python >= 3.8
+- gymnasium >= 0.26.0
+- numpy >= 1.21.0
+
+## 🏥 Interactive Dashboard (NEW!)
+
+A modern web-based dashboard for interactive hospital management:
+
+### Quick Start
+
+```bash
+# Install dependencies (includes Flask)
+pip install -r requirements.txt
+
+# Start the dashboard
+python run_dashboard.py
+```
+
+Dashboard opens automatically at `http://localhost:5000`
+
+### Dashboard Features
+
+- **Real-time Metrics**: Total patients, waiting queue, available beds/doctors
+- **Patient Management**: Add, admit, and discharge patients
+- **Doctor & Bed Status**: Visual overview of resource availability
+- **Auto-Refresh**: Live updates every 2 seconds (enable/disable)
+- **Environment Settings**: Configure doctors, beds, patient arrival rate
+- **Episode Statistics**: Track steps, rewards, and performance
+
+### Dashboard Screenshots
+
+The dashboard provides:
+- 📊 **6 Key Metrics** in an easy-to-scan grid
+- 📋 **Waiting Queue Panel** with patient details and severity indicators
+- 👨‍⚕️ **Doctor Status Grid** showing specialty and availability
+- 🛏️ **Bed Status Display** with occupation indicators
+- ➕ **Quick Action Buttons** for common operations
+- ⚙️ **Settings Modal** for environment configuration
+
+See [DASHBOARD_README.md](DASHBOARD_README.md) for full documentation.
+
+## Quick Start
+
+### Basic Usage
+
+```python
+import gymnasium as gym
+import hospital_triage
+
+# Create environment
+env = gym.make('HospitalTriage-v0')
+
+# Reset and get initial observation
+obs, info = env.reset()
+
+# Run episodes
+for step in range(100):
+    action = env.action_space.sample()  # Random action
+    obs, reward, terminated, truncated, info = env.step(action)
+    
+    if terminated or truncated:
+        obs, info = env.reset()
+
+env.close()
+```
+
+## Environment Details
+
+### State Space
+
+The observation is a normalized vector (np.float32) containing:
+
+- **Patient Queue** (max 30 patients):
+  - Severity level (0=LOW, 1=MODERATE, 2=HIGH, 3=CRITICAL)
+  - Expected duration
+  - Required specialty
+  - Waiting time
+
+- **Doctor Status** (10 doctors):
+  - Availability (0/1)
+  - Specialty
+  - Current workload
+
+- **Bed Status** (20 beds):
+  - Availability (0/1)
+  - Priority level
+
+- **Environment Info**:
+  - Current timestep
+  - Queue length
+  - Utilization metrics
+
+### Action Space
+
+Action is a vector: `[action_type, patient_id, doctor_id, bed_id]`
+
+Available actions:
+- **0**: Admit patient to hospital
+- **1**: Delay non-urgent patient
+- **2**: Assign doctor to patient
+- **3**: Allocate bed to patient
+- **4**: Schedule lab test
+- **5**: Discharge patient
+
+### Reward Design
+
+**Positive Rewards:**
+- Admitting critical patients quickly: +3-7 points
+- Appropriate specialty matching: +1 point
+- Successfully discharging patient: +1.5 points
+- Scheduling tests: +0.5 points
+
+**Negative Rewards:**
+- Delaying critical patients: -10 points
+- Ignoring emergency cases: -5 to -10 points
+- Mismatched doctor assignment: -2 points
+- Invalid actions: -3 to -5 points
+- Overbooking resources: -2 to -3 points
+
+### Episode Termination
+
+Episodes end when:
+- Maximum steps reached (default: 1000)
+- Or manually by user
+
+## Configuration
+
+Customize the environment:
+
+```python
+import gymnasium as gym
+
+env = gym.make(
+    'HospitalTriage-v0',
+    num_doctors=15,           # Number of doctors
+    num_beds=30,              # Number of beds
+    num_lab_tests=8,          # Number of lab test slots
+    max_episode_length=2000,  # Max timesteps
+    patient_arrival_rate=0.5, # Patient arrival probability
+    render_mode='human',      # 'human' or 'ansi'
+    seed=42                   # Random seed
+)
+```
+
+## Demo Scripts
+
+Run various demos showcasing different agent types:
+
+```bash
+# Start the interactive dashboard
+python run_dashboard.py
+
+# Run various demos (requires stable-baselines3)
+python scripts/demo.py
+
+# Or run specific demos:
+python -c "from scripts.demo import demo_random_agent; demo_random_agent()"
+python -c "from scripts.demo import demo_rule_based_agent; demo_rule_based_agent()"
+python -c "from scripts.demo import demo_trained_agent; demo_trained_agent()"
+python -c "from scripts.demo import demo_environment_features; demo_environment_features()"
+```
+
+### Demo Scenarios
+
+1. **Random Agent**: Baseline showing random action selection
+2. **Rule-Based Agent**: Simple heuristics for patient prioritization
+3. **Trained RL Agent**: PPO agent trained via Stable-Baselines3
+4. **Environment Features**: API demonstration and configuration
+
+## Testing
+
+Run the test suite:
+
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest tests/
+
+# With coverage
+pytest tests/ --cov=hospital_triage
+```
+
+## Architecture
+
+```
+hospital-triage/
+├── hospital_triage/
+│   ├── __init__.py
+│   └── envs/
+│       ├── __init__.py
+│       ├── hospital_triage_env.py    # Main environment
+│       ├── data_structures.py         # Patient, Doctor, Bed, etc.
+│       └── patient_generator.py       # Arrival generation
+├── scripts/
+│   └── demo.py                        # Demo agents
+├── templates/
+│   └── index.html                     # Dashboard UI
+├── tests/
+│   └── test_hospital_triage.py        # Test suite
+├── hospital_api.py                    # Flask API server
+├── run_dashboard.py                   # Dashboard startup script
+├── setup.py                           # Package setup
+├── requirements.txt                   # Dependencies
+├── Dockerfile                         # Docker image
+├── docker-compose.yml                 # Docker Compose
+├── DASHBOARD_README.md                # Dashboard documentation
+└── README.md                          # This file
+```
+
+## Docker Usage
+
+### Build Image
+
+```bash
+docker build -t hospital-triage:latest .
+```
+
+### Run Container
+
+```bash
+# Run demo
+docker run hospital-triage:latest
+
+# Run with volume mount for development
+docker run -v $(pwd):/app hospital-triage:latest python scripts/demo.py
+```
+
+### Using Docker Compose
+
+```bash
+# Start service
+docker-compose up
+
+# Run command
+docker-compose exec hospital-triage python scripts/demo.py
+
+# Stop service
+docker-compose down
+```
+
+## Training Custom Agents
+
+Example using Stable-Baselines3:
+
+```python
+import gymnasium as gym
+from stable_baselines3 import PPO
+import hospital_triage
+
+# Create environment
+env = gym.make('HospitalTriage-v0')
+
+# Train agent
+model = PPO('MlpPolicy', env, verbose=1)
+model.learn(total_timesteps=100000)
+
+# Save model
+model.save("hospital_triage_ppo")
+
+# Load and evaluate
+model = PPO.load("hospital_triage_ppo")
+obs, info = env.reset()
+for _ in range(100):
+    action, _ = model.predict(obs)
+    obs, reward, terminated, truncated, info = env.step(action)
+    if terminated or truncated:
+        break
+
+env.close()
+```
+
+## Performance Metrics
+
+Track agent performance with environment info:
+
+```python
+obs, info = env.reset()
+for step in range(1000):
+    action = env.action_space.sample()
+    obs, reward, terminated, truncated, info = env.step(action)
+    
+    # Access metrics
+    print(f"Queue: {info['queue_length']}")
+    print(f"Admitted: {info['admitted_count']}")
+    print(f"Avg Wait Time: {info['avg_waiting_time']:.1f}")
+```
+
+## Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request
+
+## Citation
+
+If you use this environment in your research, please cite:
+
+```bibtex
+@software{hospital_triage_2024,
+  title={Hospital Triage and Resource Allocation Environment},
+  author={Your Name},
+  year={2024},
+  url={https://github.com/yourusername/hospital-triage}
+}
+```
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Troubleshooting
+
+### Import Error: "No module named hospital_triage"
+
+```bash
+pip install -e .
+```
+
+### Docker Build Fails
+
+Ensure Docker is installed and running:
+```bash
+docker --version
+docker-compose --version
+```
+
+### Tests Fail
+
+Install development dependencies:
+```bash
+pip install -e ".[dev]"
+```
+
+## Resources
+
+- [Gymnasium Documentation](https://gymnasium.farama.org/)
+- [Stable-Baselines3](https://stable-baselines3.readthedocs.io/)
+- [Hospital Operations Research](https://pubsonline.informs.org/)
+
+## Future Enhancements
+
+- [ ] Multi-agent simulation
+- [ ] Visual rendering with matplotlib
+- [ ] Benchmark comparisons with standard baselines
+- [ ] Extended scenario library
+- [ ] Real hospital data integration
+- [ ] Natural language action descriptions
+
+## Support
+
+For issues and questions:
+- Open an issue on GitHub
+- Email: your.email@example.com
+
+---
+
+Made with ❤️ for healthcare AI research
