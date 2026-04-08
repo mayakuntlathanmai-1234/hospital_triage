@@ -1,0 +1,3 @@
+name: HospitalTriage-v0
+version: "1.0.0"
+description: "A comprehensive OpenEnv (Gymnasium) environment simulating hospital operations to manage patients, beds, doctors, and resources."
