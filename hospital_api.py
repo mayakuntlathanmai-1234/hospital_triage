@@ -404,9 +404,9 @@ def api_step_auto_admit():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/api/step', methods=['POST'])
-@app.route('/openenv/step', methods=['POST'])
-@app.route('/step', methods=['POST'])
+@app.route('/api/step', methods=['POST'], strict_slashes=False)
+@app.route('/openenv/step', methods=['POST'], strict_slashes=False)
+@app.route('/step', methods=['POST'], strict_slashes=False)
 def api_step():
     """Execute step (Auto-Admit if no action)."""
     global env, episode_reward, step_count
@@ -578,9 +578,9 @@ def api_bulk_discharge():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/api/reset', methods=['POST'])
-@app.route('/openenv/reset', methods=['POST'])
-@app.route('/reset', methods=['POST'])
+@app.route('/api/reset', methods=['POST'], strict_slashes=False)
+@app.route('/openenv/reset', methods=['POST'], strict_slashes=False)
+@app.route('/reset', methods=['POST'], strict_slashes=False)
 def api_reset():
     """Reset simulation."""
     try:
