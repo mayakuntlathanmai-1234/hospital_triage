@@ -1,3 +1,14 @@
 name: HospitalTriage-v0
 version: "1.0.0"
 description: "A comprehensive OpenEnv (Gymnasium) environment simulating hospital operations to manage patients, beds, doctors, and resources."
+
+tasks:
+  - id: triage_standard
+    name: "Standard Triage"
+    grader: true
+  - id: triage_heavy_traffic
+    name: "Heavy Traffic Triage"
+    grader: true
+  - id: triage_limited_resources
+    name: "Limited Resources Triage"
+    grader: true
