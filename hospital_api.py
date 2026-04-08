@@ -330,7 +330,7 @@ def dashboard():
 def api_init():
     """Initialize the environment."""
     try:
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         success = init_environment(
             num_doctors=data.get('num_doctors', 10),
             num_beds=data.get('num_beds', 20),
@@ -413,7 +413,7 @@ def api_step():
     try:
         if env is None: return jsonify({"error": "Init required"}), 400
         
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         action = data.get('action')
         
         if action is None:
@@ -486,7 +486,7 @@ def api_admit_patient():
     global env, episode_reward, step_count
     try:
         if env is None: return jsonify({"error": "Init required"}), 400
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         p_id = data.get('patient_id')
         p_idx = get_patient_index(p_id, 'queue')
         if p_idx is None: return jsonify({"error": "Patient not found"}), 404
@@ -514,7 +514,7 @@ def api_discharge_patient():
     global env, episode_reward, step_count
     try:
         if env is None: return jsonify({"error": "Init required"}), 400
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         p_id = data.get('patient_id')
         p_idx = get_patient_index(p_id, 'admitted')
         if p_idx is None: return jsonify({"error": "Patient not found"}), 404
@@ -542,7 +542,7 @@ def api_bulk_discharge():
     global env, episode_reward, step_count
     try:
         if env is None: return jsonify({"error": "Init required"}), 400
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         p_ids = data.get('patient_ids', [])
         
         logger.info(f"Starting bulk discharge for patients: {p_ids}")
@@ -585,7 +585,7 @@ def api_reset():
     """Reset simulation."""
     try:
         if env is None: return jsonify({"error": "Init required"}), 400
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         unwrapped = env.unwrapped
         success = init_environment(
             num_doctors=data.get('num_doctors', unwrapped.num_doctors),
@@ -637,7 +637,7 @@ def api_smart_allocate():
     """Smart allocation logic."""
     try:
         if env is None: return jsonify({"error": "Init required"}), 400
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         p_id = data.get('patient_id')
         if not p_id: return jsonify({"error": "patient_id required"}), 400
         
@@ -737,7 +737,7 @@ def api_ml_predict_priority():
     """Predict priority for a hypothetical patient."""
     try:
         if predictor is None: return jsonify({"error": "ML predictor not initialized"}), 503
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         
         age = data.get('age', 45)
         severity = data.get('severity', 1)
@@ -754,7 +754,7 @@ def api_mark_notification_read():
     """Mark a specific notification as read."""
     global notifications
     try:
-        data = request.json or {}
+        data = request.get_json(silent=True) or {}
         notif_id = data.get('notification_id')
         for n in notifications:
             if n['id'] == notif_id:
