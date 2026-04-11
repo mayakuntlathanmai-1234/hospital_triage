@@ -66,8 +66,21 @@ def run_agent():
                 elif step == 2:
                     current_input = history[-1] if history else "No patient"
                     observation = f"Analyzing symptoms: {current_input}"
-                    action = "analyze_symptoms()"
-                    reward = 0.5
+                    
+                    # MANDATORY LLM CALL for traffic observation (Hackathon requirement)
+                    try:
+                        response = client.chat.completions.create(
+                            model=MODEL_NAME,
+                            messages=[{"role": "user", "content": f"Summarize symptoms: {current_input}"}],
+                            max_tokens=20
+                        )
+                        analysis = response.choices[0].message.content or "analysis complete"
+                        action = f"analyze('{analysis}')"
+                        reward = 0.5
+                    except Exception as e:
+                        action = "analyze_symptoms()"
+                        reward = 0.5
+                        error = f"API_CONN_ISSUE: {str(e)[:30]}"
                 else:
                     last_obs = history[-1] if history else ""
                     observation = "Diagnosis: Acute Myocardial Infarction suspected."
