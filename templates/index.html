@@ -428,6 +428,45 @@
                 grid-column: span 2;
             }
         }
+
+        /* Voice Intake Animations */
+        .mic-active {
+            animation: pulse-red 1.5s infinite;
+            background: var(--danger) !important;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .listening-wave {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            height: 40px;
+            margin: 20px 0;
+        }
+
+        .bar {
+            width: 4px;
+            height: 10px;
+            background: var(--primary);
+            border-radius: 2px;
+            animation: wave 1s infinite ease-in-out;
+        }
+
+        .bar:nth-child(2) { animation-delay: 0.1s; }
+        .bar:nth-child(3) { animation-delay: 0.2s; }
+        .bar:nth-child(4) { animation-delay: 0.3s; }
+        .bar:nth-child(5) { animation-delay: 0.4s; }
+
+        @keyframes wave {
+            0%, 100% { height: 10px; }
+            50% { height: 30px; }
+        }
     </style>
 </head>
 
@@ -469,6 +508,30 @@
         </div>
     </div>
 
+    <div id="voiceModal" class="modal">
+        <div class="modal-content" style="max-width: 600px; text-align: center;">
+            <h2 id="voiceStatus"><i class="fas fa-microphone"></i> Listening...</h2>
+            <div class="listening-wave" id="voiceWave">
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+            </div>
+            <div id="voiceTranscript" class="glass-card" style="padding: 20px; min-height: 100px; margin-bottom: 20px; font-style: italic; color: var(--text-dim);">
+                Please speak your symptoms...
+            </div>
+            <div id="aiAnalysis" class="glass-card" style="padding: 15px; margin-bottom: 20px; display: none; text-align: left; border-left: 4px solid var(--success);">
+                <h4 style="color: var(--success); margin-bottom: 5px;">AI Triage Result:</h4>
+                <p id="aiResultText" style="font-size: 13px;"></p>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button id="stopVoiceBtn" class="btn btn-danger" style="flex: 1;" onclick="stopVoiceRecognition()">Stop & Analyze</button>
+                <button class="btn btn-secondary" onclick="closeModal('voiceModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <header class="glass-card">
             <h1><i class="fas fa-microchip"></i> MediFlow AI</h1>
@@ -484,6 +547,9 @@
                 <button class="btn btn-success" onclick="addPatient()"><i class="fas fa-user-plus"></i></button>
                 <button class="btn btn-secondary" onclick="openModal('settingsModal')"><i
                         class="fas fa-cog"></i></button>
+                <button class="btn btn-info" onclick="startVoiceIntake()" title="Voice Intake">
+                    <i class="fas fa-microphone"></i>
+                </button>
                 <button id="notifBtn" class="btn btn-secondary" style="position: relative;"
                     onclick="openModal('notifModal')">
                     <i class="fas fa-bell"></i>
@@ -951,6 +1017,91 @@
         function formatSpecialty(v) {
             return ['General', 'Cardiology', 'Orthopedics', 'Neurology', 'Emergency'][v] || 'General';
         }
+
+        // --- Voice Intake Logic ---
+        let recognition = null;
+        function startVoiceIntake() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                return showToast("Speech recognition not supported in this browser.", "error");
+            }
+
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRec();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            document.getElementById('voiceTranscript').textContent = "Listening...";
+            document.getElementById('aiAnalysis').style.display = 'none';
+            document.getElementById('voiceStatus').innerHTML = '<i class="fas fa-microphone"></i> Listening...';
+            document.getElementById('voiceWave').style.display = 'flex';
+            document.getElementById('stopVoiceBtn').disabled = false;
+            openModal('voiceModal');
+
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                document.getElementById('voiceTranscript').textContent = transcript;
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Speech Rec Error:", event.error);
+                showToast("Voice error: " + event.error, "error");
+                closeModal('voiceModal');
+            };
+
+            recognition.start();
+        }
+
+        function stopVoiceRecognition() {
+            if (recognition) {
+                recognition.stop();
+                const symptoms = document.getElementById('voiceTranscript').textContent;
+                if (symptoms && symptoms !== "Listening..." && symptoms.length > 5) {
+                    processVoiceSymptoms(symptoms);
+                } else {
+                    showToast("No symptoms detected", "warning");
+                    closeModal('voiceModal');
+                }
+            }
+        }
+
+        async function processVoiceSymptoms(text) {
+            document.getElementById('voiceStatus').innerHTML = '<i class="fas fa-brain"></i> AI Analyzing Triage...';
+            document.getElementById('voiceWave').style.display = 'none';
+            document.getElementById('stopVoiceBtn').disabled = true;
+
+            try {
+                const res = await fetch('/api/action/voice-intake', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symptoms: text })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    const p = data.patient;
+                    document.getElementById('aiAnalysis').style.display = 'block';
+                    document.getElementById('aiResultText').innerHTML = `
+                        <strong>Patient ID:</strong> #${p.id}<br>
+                        <strong>Severity:</strong> <span style="color:var(--danger)">${p.severity}</span><br>
+                        <strong>Department:</strong> ${p.specialty}<br>
+                        <strong>Assessment:</strong> ${p.reasoning}
+                    `;
+                    showToast("Patient Added via Voice", "success");
+                    updateDashboard();
+                } else {
+                    showToast(data.error || "Triage failed", "error");
+                    closeModal('voiceModal');
+                }
+            } catch (e) {
+                showToast("Server error during AI triage", "error");
+                closeModal('voiceModal');
+            }
+        }
+
         function startPolling() { setInterval(() => { if (!isSimulating) updateDashboard(); }, 4000); updateDashboard(); }
     </script>
 </body>

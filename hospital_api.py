@@ -8,6 +8,8 @@ from typing import Optional, Dict, Any
 import logging
 import os
 import sys
+import json
+from openai import OpenAI
 
 # Ensure the app directory is explicitly in the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -61,6 +63,15 @@ try:
 except Exception as e:
     logger.warning(f"Could not initialize ML predictor: {e}. ML features may be unavailable.")
     predictor = None
+
+# OpenAI Client for Voice Intake AI
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4-turbo")
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+llm_client = OpenAI(
+    api_key=API_KEY if API_KEY else "dummy_key",
+    base_url=API_BASE_URL
+)
 
 
 def init_environment(
@@ -508,6 +519,93 @@ def api_admit_patient():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/action/voice-intake', methods=['POST'])
+def api_voice_intake():
+    """Handle voice-transcribed patient intake using AI analysis."""
+    try:
+        if env is None: return jsonify({"error": "Init required"}), 400
+        data = request.get_json(silent=True) or {}
+        symptoms = data.get('symptoms', '')
+        
+        if not symptoms:
+            return jsonify({"error": "No symptoms provided"}), 400
+
+        logger.info(f"Processing voice intake: {symptoms}")
+
+        # AI Analysis to extract severity and specialty
+        try:
+            prompt = f"""
+            Analyze the following patient symptoms and categorize them for hospital triage.
+            Symptoms: "{symptoms}"
+            
+            Return ONLY a JSON object with the following fields:
+            - "severity": integer from 0 (LOW) to 3 (CRITICAL)
+            - "specialty": integer from 0 (GENERAL) to 4 (EMERGENCY)
+              (0:GENERAL, 1:CARDIOLOGY, 2:ORTHOPEDICS, 3:NEUROLOGY, 4:EMERGENCY)
+            - "reasoning": a short sentence explanation
+            """
+            
+            response = llm_client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": "You are a medical triage assistant. Respond only in JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={ "type": "json_object" }
+            )
+            
+            analysis = json.loads(response.choices[0].message.content)
+            severity = analysis.get('severity', 1)
+            specialty = analysis.get('specialty', 0)
+            reasoning = analysis.get('reasoning', "AI triage assessment")
+            
+        except Exception as ai_err:
+            logger.error(f"AI triage failed: {ai_err}")
+            # Fallback to defaults if AI fails
+            severity = 1
+            specialty = 0
+            reasoning = "Fallback triage (AI unavailable)"
+
+        # Create the patient manually in the environment
+        unwrapped = env.unwrapped
+        state = unwrapped.state
+        
+        # We need to manually construct the Patient object as PatientGenerator does
+        from hospital_triage.envs.data_structures import Patient, SeverityLevel, DoctorSpecialty
+        
+        unwrapped.patient_generator.patient_id_counter += 1
+        new_id = unwrapped.patient_generator.patient_id_counter
+        
+        # Duration depends on severity
+        duration = 30 + (severity * 10)
+        
+        new_patient = Patient(
+            id=new_id,
+            arrival_time=state.current_time,
+            severity=SeverityLevel(severity),
+            required_specialty=DoctorSpecialty(specialty),
+            duration=duration,
+            symptoms=symptoms
+        )
+        
+        state.patients_queue.append(new_patient)
+        
+        return jsonify({
+            "success": True,
+            "state": get_hospital_state(),
+            "patient": {
+                "id": new_id,
+                "severity": SeverityLevel(severity).name,
+                "specialty": DoctorSpecialty(specialty).name,
+                "reasoning": reasoning
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in voice intake: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/action/discharge-patient', methods=['POST'])
 def api_discharge_patient():
     """Manual discharge."""
@@ -630,6 +728,18 @@ def find_best_bed(patient_id: int):
     if not available: return None
     if patient.severity.value >= 2: return max(available, key=lambda b: b.priority_level).id
     return available[0].id
+
+
+def detect_emergency(text: str) -> bool:
+    """Check if symptoms suggest an emergency (e.g., chest pain)."""
+    text = text.lower()
+    return "chest pain" in text or "heart attack" in text or "breathing difficulty" in text
+
+
+def detect_fracture(text: str) -> bool:
+    """Check if symptoms suggest a fracture/orthopedic issue."""
+    text = text.lower()
+    return "fracture" in text or "broken bone" in text or "leg pain" in text or "ankle" in text
 
 
 @app.route('/api/schedule/smart-allocate', methods=['POST'])

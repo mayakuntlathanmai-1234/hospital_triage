@@ -1,3 +1,13 @@
+---
+title: Hospital Triage and Resource Allocation
+emoji: 🏥
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+pinned: false
+app_file: hospital_api.py
+---
+
 # Hospital Triage and Resource Allocation Environment
 
 A comprehensive OpenEnv (Gymnasium) environment simulating hospital daily operations where an agent learns to efficiently manage patients, beds, doctors, and resources.

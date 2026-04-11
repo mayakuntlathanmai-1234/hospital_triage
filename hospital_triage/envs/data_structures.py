@@ -46,6 +46,7 @@ class Patient:
     test_scheduled: bool = False
     test_time: Optional[int] = None
     waiting_time: int = 0
+    symptoms: str = ""
     
     def __hash__(self):
         return hash(self.id)
